@@ -16,17 +16,7 @@ import datetime
 import pickle
 
 # 数据集基本参数
-dataset_list = 'newtraffic-nj' # 'traffic_RSRP-CPGMCM-12Features-calc_sh-app-rebuild'
-time_length = 64
-
-task = 'long_prediction' # 'mix', 'short_prediction', 'long_prediction', 'generation'
-prompt_state = 'few-shot' #'load', 'train', 'test', 'zero-shot', 'few-shot'
-save_folder = 'traffic_RSRP-CPGMCM-12Features-calc_sh-app-rebuild__pretrained' # 仅当 prompt_state == 'test' 时有效
-fewshot_rate = 0.1
-
-use_cond = True
 os.environ["CUDA_VISIBLE_DEVICES"] = "6" # cuda
-process_name = dataset_list + "@qxq"
 
 def setup_init(seed):
     random.seed(seed)
@@ -58,6 +48,13 @@ def create_argparser():
         batch_size = 32,
         total_epoches = 600,
 
+        # 模型参数 ——————————————
+        task='long_prediction',
+        prompt_state='train',
+        save_folder='traffic_RSRP-CPGMCM-12Features-calc_sh-app-rebuild__pretrained',
+        fewshot_rate=0.1,
+        time_length=64,
+
         device_id='0',
         machine = 'machine_name',
         mask_ratio = 0.5,
@@ -71,16 +68,15 @@ def create_argparser():
         mask_strategy_random = 'batch', # ['none','batch']
         # mask_strategy = 'generation_masking',
         # mask_strategy_random = 'none', # ['none','batch']
-        use_cond = use_cond,
+        use_cond=True,
         mode='training',
         file_load_path = '',
         min_lr = 1e-5,
-        dataset = dataset_list,
+        dataset='newtraffic-nj',
         stage = 0,
         no_qkv_bias = 0,
         pos_emb = 'SinCos',
         used_data = '',
-        process_name = process_name,
     )
     parser = argparse.ArgumentParser()
     add_dict_to_argparser(parser, defaults)
@@ -96,16 +92,11 @@ def main():
     setproctitle.setproctitle("{}-{}".format(args.dataset, args.total_epoches))
     setup_init(100)
 
-    args.task = task
-    args.prompt_state = prompt_state
     current_time = datetime.datetime.now().strftime("%m%d_%H%M%S")
-    args.folder = '{}/'.format(dataset_list + '_' + current_time)
-    args.datatype = dataset_list
-    args.time_length = time_length
+    args.folder = '{}/'.format(args.dataset + '_' + current_time)
+    args.datatype = args.dataset
     args.model_path = './experiments/{}'.format(args.folder) 
     logdir = "./logs/{}".format(args.folder)
-    args.save_folder = save_folder
-    args.fewshot_rate = fewshot_rate
 
     if not os.path.exists(args.model_path):
         os.mkdir(args.model_path)
@@ -149,8 +140,8 @@ def main():
         ).run_loop(args)
     
     elif args.prompt_state in ['test', 'zero-shot']:
-        model_folder = './experiments/' + save_folder + '/model_save/'
-        file_path = model_folder + 'model_best_' + save_folder[:-12] + '.pkl'
+        model_folder = './experiments/' + args.save_folder + '/model_save/'
+        file_path = model_folder + 'model_best_' + args.save_folder[:-12] + '.pkl'
         state_dict = torch.load(file_path)
         model.load_state_dict(state_dict)
 
